@@ -23,6 +23,9 @@ const MIME = {
   ".webmanifest": "application/manifest+json; charset=utf-8",
 };
 
+// 배포된 버전 확인용. 코드 바꿀 때마다 올린다.
+const BUILD = "2026-06-18-flipfix";
+
 function lanIP() {
   const ifaces = os.networkInterfaces();
   for (const name of Object.keys(ifaces)) {
@@ -40,7 +43,11 @@ function sendFile(res, file) {
       res.end("Not found");
       return;
     }
-    res.writeHead(200, { "Content-Type": MIME[path.extname(file)] || "application/octet-stream" });
+    const ext = path.extname(file);
+    const headers = { "Content-Type": MIME[ext] || "application/octet-stream" };
+    // HTML은 항상 최신을 받도록 캐시 금지(배포 후 옛 화면이 남는 문제 방지)
+    if (ext === ".html") headers["Cache-Control"] = "no-store, must-revalidate";
+    res.writeHead(200, headers);
     res.end(data);
   });
 }
@@ -48,6 +55,12 @@ function sendFile(res, file) {
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
   let p = url.pathname;
+
+  if (p === "/version") {
+    res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" });
+    res.end(BUILD);
+    return;
+  }
 
   if (p === "/" || p === "/index.html") return sendFile(res, path.join(PUBLIC, "index.html"));
   if (p === "/display" || p === "/display.html") return sendFile(res, path.join(PUBLIC, "display.html"));
