@@ -2,8 +2,15 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
 <title>프롬프터</title>
+<link rel="manifest" href="/manifest.webmanifest" />
+<meta name="theme-color" content="#000000" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<link rel="apple-touch-icon" href="/icon.svg" />
+<link rel="icon" href="/icon.svg" />
 <style>
   :root { color-scheme: dark; }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -71,6 +78,15 @@
     background: rgba(20,20,20,.85); color: #bbb; font-size: 13px;
     padding: 8px 14px; border-radius: 999px; z-index: 5; transition: opacity .4s;
   }
+  /* 전체화면 버튼(주소창 숨기기) */
+  #fsbtn {
+    position: absolute; top: 12px; left: 12px; z-index: 7;
+    width: 46px; height: 46px; border-radius: 12px; border: 1px solid rgba(255,255,255,.18);
+    background: rgba(25,25,25,.5); color: #fff; font-size: 20px; opacity: .55; transition: opacity .25s;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #fsbtn:active { opacity: 1; background: rgba(245,166,35,.85); color: #0b0d10; }
+  #stage.playing #fsbtn { opacity: .25; }
   #dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:#e0533d; margin-right:6px; vertical-align:middle;}
   #dot.on { background:#34c759; }
   #empty {
@@ -88,6 +104,7 @@
       <button id="nUp" aria-label="위로">▲</button>
       <button id="nDown" aria-label="아래로">▼</button>
     </div>
+    <button id="fsbtn" aria-label="전체화면">⛶</button>
   </div>
   <div id="empty">리모콘에서 대본을 입력하고<br/>▶︎ 를 누르면 여기에 흐릅니다.</div>
   <div id="hint"><span id="dot"></span><span id="hinttext">리모콘 연결 대기 중…</span></div>
@@ -216,7 +233,7 @@ function setPlaying(v) { state.playing = v; stage.classList.toggle("playing", v)
 // 위아래로 쓸기(스와이프/드래그) — 짧게 탭하면 재생/정지
 let drag = null;
 stage.addEventListener("pointerdown", (e) => {
-  if (e.target.closest("#nudgers")) return; // 버튼은 따로 처리
+  if (e.target.closest("#nudgers, #fsbtn")) return; // 버튼은 따로 처리
   drag = { y: e.clientY, startPos: state.pos, moved: false };
   try { stage.setPointerCapture(e.pointerId); } catch {}
 });
@@ -267,6 +284,26 @@ function holdNudge(btn, delta) {
 }
 holdNudge(document.getElementById("nUp"), -40);
 holdNudge(document.getElementById("nDown"), 40);
+
+// 전체화면 토글(주소창 숨김) — 안드로이드 크롬에서 동작
+const fsbtn = document.getElementById("fsbtn");
+fsbtn.addEventListener("click", (e) => {
+  e.stopPropagation();
+  const el = document.documentElement;
+  if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+    const req = el.requestFullscreen || el.webkitRequestFullscreen;
+    if (req) { req.call(el).catch(()=>{}); }
+  } else {
+    const exit = document.exitFullscreen || document.webkitExitFullscreen;
+    if (exit) { exit.call(document); }
+  }
+});
+function syncFsIcon() {
+  const on = !!(document.fullscreenElement || document.webkitFullscreenElement);
+  fsbtn.textContent = on ? "🗗" : "⛶";
+}
+document.addEventListener("fullscreenchange", syncFsIcon);
+document.addEventListener("webkitfullscreenchange", syncFsIcon);
 
 window.addEventListener("resize", () => { state.pos = Math.min(state.pos, maxPos()); render(); sendStatus(); });
 

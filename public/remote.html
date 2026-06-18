@@ -2,8 +2,15 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
 <title>프롬프터 리모콘</title>
+<link rel="manifest" href="/manifest.webmanifest" />
+<meta name="theme-color" content="#0b0d10" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<link rel="apple-touch-icon" href="/icon.svg" />
+<link rel="icon" href="/icon.svg" />
 <style>
   :root { color-scheme: dark; }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -20,6 +27,9 @@
   }
   #dot { width: 9px; height: 9px; border-radius: 50%; background: #e0533d; }
   #dot.on { background: #34c759; }
+  #fsbtn { margin-left: auto; width: 38px; height: 38px; border-radius: 10px; border: 1px solid #23272e;
+    background: #15181c; color: #e8eaed; font-size: 17px; }
+  #fsbtn:active { background: #1d2127; }
   main { flex: 1; padding: 14px 16px 20px; display: flex; flex-direction: column; gap: 14px; max-width: 520px; width: 100%; margin: 0 auto; }
 
   /* 진행바 */
@@ -91,7 +101,7 @@
 </style>
 </head>
 <body>
-  <header><span id="dot"></span><span id="status">연결 중…</span></header>
+  <header><span id="dot"></span><span id="status">연결 중…</span><button id="fsbtn" aria-label="전체화면">⛶</button></header>
   <main>
     <div class="progwrap">
       <input id="seek" type="range" min="0" max="1000" value="0" />
@@ -286,6 +296,24 @@ function flash(btn, msg) {
   const old = btn.textContent; btn.textContent = msg;
   setTimeout(() => { btn.textContent = old; }, 900);
 }
+
+// 전체화면 토글(주소창 숨김)
+$("fsbtn").addEventListener("click", () => {
+  const el = document.documentElement;
+  if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+    const req = el.requestFullscreen || el.webkitRequestFullscreen;
+    if (req) req.call(el).catch(()=>{});
+  } else {
+    const exit = document.exitFullscreen || document.webkitExitFullscreen;
+    if (exit) exit.call(document);
+  }
+});
+function syncFsIcon() {
+  const on = !!(document.fullscreenElement || document.webkitFullscreenElement);
+  $("fsbtn").textContent = on ? "🗗" : "⛶";
+}
+document.addEventListener("fullscreenchange", syncFsIcon);
+document.addEventListener("webkitfullscreenchange", syncFsIcon);
 
 connect();
 </script>

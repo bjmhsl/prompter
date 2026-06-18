@@ -1,0 +1,14 @@
+{
+  "name": "프롬프터",
+  "short_name": "프롬프터",
+  "description": "리모콘으로 조작하는 프롬프터",
+  "start_url": "/display",
+  "scope": "/",
+  "display": "fullscreen",
+  "orientation": "any",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
