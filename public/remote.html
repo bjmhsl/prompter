@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>프롬프터 리모콘</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", sans-serif;
+    background: #0b0d10; color: #e8eaed;
+    display: flex; flex-direction: column; min-height: 100%;
+    padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+  }
+  header {
+    display: flex; align-items: center; gap: 8px;
+    padding: 12px 16px; border-bottom: 1px solid #1c2026; font-size: 14px; color: #9aa0a6;
+  }
+  #dot { width: 9px; height: 9px; border-radius: 50%; background: #e0533d; }
+  #dot.on { background: #34c759; }
+  main { flex: 1; padding: 14px 16px 20px; display: flex; flex-direction: column; gap: 14px; max-width: 520px; width: 100%; margin: 0 auto; }
+
+  /* 진행바 */
+  .progwrap { display: flex; flex-direction: column; gap: 6px; }
+  #seek { -webkit-appearance: none; appearance: none; width: 100%; height: 26px; background: transparent; }
+  #seek::-webkit-slider-runnable-track { height: 8px; border-radius: 999px; background: #23272e; }
+  #seek::-webkit-slider-thumb { -webkit-appearance: none; width: 26px; height: 26px; margin-top: -9px; border-radius: 50%; background: #f5a623; }
+  #seek::-moz-range-track { height: 8px; border-radius: 999px; background: #23272e; }
+  #seek::-moz-range-thumb { width: 26px; height: 26px; border: none; border-radius: 50%; background: #f5a623; }
+  .progmeta { display: flex; justify-content: space-between; font-size: 12px; color: #9aa0a6; }
+
+  /* 큰 재생 버튼 + 좌우 */
+  .transport { display: grid; grid-template-columns: 1fr 1.4fr 1fr; gap: 12px; align-items: center; }
+  button { font-family: inherit; border: none; cursor: pointer; color: #e8eaed; }
+  .tbtn { background: #15181c; border: 1px solid #23272e; border-radius: 16px; height: 72px; font-size: 24px; }
+  .tbtn:active { background: #1d2127; }
+  #play { background: #f5a623; color: #0b0d10; border: none; height: 88px; border-radius: 20px; font-size: 30px; font-weight: 800; }
+  #play:active { filter: brightness(.92); }
+
+  .row { display: flex; align-items: center; gap: 10px; }
+  .row .label { width: 70px; font-size: 13px; color: #9aa0a6; }
+  .row .val { width: 64px; text-align: right; font-variant-numeric: tabular-nums; font-size: 14px; }
+  .stepper { display: flex; flex: 1; gap: 8px; }
+  .stepper button { flex: 1; background: #15181c; border: 1px solid #23272e; border-radius: 12px; height: 46px; font-size: 20px; }
+  .stepper button:active { background: #1d2127; }
+
+  .nudge { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .nudge button { background: #15181c; border: 1px solid #23272e; border-radius: 12px; height: 50px; font-size: 15px; }
+
+  .toggles { display: flex; gap: 8px; flex-wrap: wrap; }
+  .toggle { flex: 1 1 30%; background: #15181c; border: 1px solid #23272e; border-radius: 12px; height: 46px; font-size: 13px; }
+  .toggle.on { background: #1f3a2a; border-color: #34c759; color: #b8f5c9; }
+
+  details { background: #15181c; border: 1px solid #23272e; border-radius: 14px; }
+  summary { padding: 14px 16px; font-size: 14px; cursor: pointer; list-style: none; }
+  summary::-webkit-details-marker { display: none; }
+  summary::after { content: "▾"; float: right; color: #9aa0a6; }
+  details[open] summary::after { content: "▴"; }
+  .editbody { padding: 0 14px 14px; display: flex; flex-direction: column; gap: 10px; }
+  .filerow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .filebtn {
+    display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+    background: #15181c; border: 1px dashed #3a4049; border-radius: 12px;
+    padding: 12px 16px; font-size: 14px; color: #cfd3d8;
+  }
+  .filebtn:active { background: #1d2127; }
+  .filebtn input { display: none; }
+  .filename { font-size: 12px; color: #34c759; word-break: break-all; }
+  textarea {
+    width: 100%; min-height: 180px; resize: vertical; background: #0b0d10; color: #e8eaed;
+    border: 1px solid #23272e; border-radius: 10px; padding: 12px; font-size: 15px; line-height: 1.5;
+    font-family: inherit;
+  }
+  .editbody .actions { display: flex; gap: 10px; }
+  .editbody .actions button { flex: 1; height: 46px; border-radius: 12px; font-size: 14px; font-weight: 700; }
+  #load { background: #8ab4f8; color: #0b0d10; }
+  #clear { background: #15181c; border: 1px solid #23272e; }
+  .hintbar { font-size: 12px; color: #6b7178; text-align: center; }
+</style>
+</head>
+<body>
+  <header><span id="dot"></span><span id="status">연결 중…</span></header>
+  <main>
+    <div class="progwrap">
+      <input id="seek" type="range" min="0" max="1000" value="0" />
+      <div class="progmeta"><span id="pct">0%</span><span id="noText">대본 없음</span></div>
+    </div>
+
+    <div class="transport">
+      <button class="tbtn" id="restart" title="처음으로">⏮</button>
+      <button id="play">▶︎ 재생</button>
+      <button class="tbtn" id="end" title="끝으로">⏭</button>
+    </div>
+
+    <div class="nudge">
+      <button id="up">▲ 조금 위로</button>
+      <button id="down">▼ 조금 아래로</button>
+    </div>
+
+    <div class="row">
+      <span class="label">속도</span>
+      <div class="stepper">
+        <button id="spdDown">－</button>
+        <button id="spdUp">＋</button>
+      </div>
+      <span class="val" id="spdVal">90</span>
+    </div>
+
+    <div class="row">
+      <span class="label">글자크기</span>
+      <div class="stepper">
+        <button id="fontDown">－</button>
+        <button id="fontUp">＋</button>
+      </div>
+      <span class="val" id="fontVal">56</span>
+    </div>
+
+    <div class="toggles">
+      <button class="toggle on" id="tGuide">기준선</button>
+      <button class="toggle" id="tFlipH">좌우반전</button>
+      <button class="toggle" id="tFlipV">상하반전</button>
+    </div>
+
+    <details>
+      <summary>대본 편집 / 불러오기</summary>
+      <div class="editbody">
+        <div class="filerow">
+          <label class="filebtn">
+            📄 파일 불러오기 (.txt 등)
+            <input id="file" type="file" accept=".txt,.md,.markdown,.srt,.vtt,.text,text/plain" />
+          </label>
+          <span class="filename" id="filename"></span>
+        </div>
+        <textarea id="script" placeholder="여기에 대본을 붙여넣거나, 위에서 파일을 불러오세요. 빈 줄로 문단을 나누면 보기 좋습니다."></textarea>
+        <div class="actions">
+          <button id="clear">비우기</button>
+          <button id="load">프롬프터에 보내기</button>
+        </div>
+      </div>
+    </details>
+    <div class="hintbar">화면이 안 움직이면: 두 기기가 같은 와이파이인지 확인하세요.</div>
+  </main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const dot = $("dot"), statusEl = $("status");
+let ws, reconnectTimer;
+let seeking = false;
+let playing = false;
+let speed = 90, fontSize = 56;
+let flipH = false, flipV = false, guide = true;
+
+function connect() {
+  ws = new WebSocket((location.protocol === "https:" ? "wss://" : "ws://") + location.host);
+  ws.onopen = () => { ws.send(JSON.stringify({ type: "hello", role: "remote" })); setConn(true); };
+  ws.onclose = () => { setConn(false); clearTimeout(reconnectTimer); reconnectTimer = setTimeout(connect, 1200); };
+  ws.onerror = () => ws.close();
+  ws.onmessage = (e) => {
+    let msg; try { msg = JSON.parse(e.data); } catch { return; }
+    if (msg.type === "status") applyStatus(msg);
+    else if (msg.type === "script") { if (!$("script").value) $("script").value = msg.text || ""; }
+  };
+}
+function setConn(ok) {
+  dot.classList.toggle("on", ok);
+  statusEl.textContent = ok ? "프롬프터와 연결됨" : "연결 끊김 — 재연결 중…";
+}
+function send(action, value) {
+  if (!ws || ws.readyState !== 1) return;
+  ws.send(JSON.stringify({ type: "control", action, value }));
+}
+function sendScript(text) {
+  if (!ws || ws.readyState !== 1) return;
+  ws.send(JSON.stringify({ type: "script", text }));
+}
+
+// 프롬프터가 보고한 상태를 UI에 반영
+function applyStatus(s) {
+  playing = !!s.playing;
+  $("play").textContent = playing ? "❚❚ 정지" : "▶︎ 재생";
+  if (typeof s.speed === "number") { speed = Math.round(s.speed); $("spdVal").textContent = speed; }
+  if (typeof s.fontSize === "number") { fontSize = Math.round(s.fontSize); $("fontVal").textContent = fontSize; }
+  if (typeof s.progress === "number" && !seeking) {
+    $("seek").value = Math.round(s.progress * 1000);
+    $("pct").textContent = Math.round(s.progress * 100) + "%";
+  }
+  $("noText").textContent = s.hasText ? "" : "대본 없음";
+  if (typeof s.guide === "boolean") { guide = s.guide; $("tGuide").classList.toggle("on", guide); }
+  if (typeof s.flipH === "boolean") { flipH = s.flipH; $("tFlipH").classList.toggle("on", flipH); }
+  if (typeof s.flipV === "boolean") { flipV = s.flipV; $("tFlipV").classList.toggle("on", flipV); }
+}
+
+// ── 컨트롤 바인딩 ──────────────────────────
+$("play").onclick = () => send("toggle");
+$("restart").onclick = () => send("restart");
+$("end").onclick = () => send("end");
+$("up").onclick = () => send("nudge", -120);
+$("down").onclick = () => send("nudge", 120);
+$("spdUp").onclick = () => { speed = Math.min(600, speed + 10); $("spdVal").textContent = speed; send("speed", speed); };
+$("spdDown").onclick = () => { speed = Math.max(10, speed - 10); $("spdVal").textContent = speed; send("speed", speed); };
+$("fontUp").onclick = () => { fontSize = Math.min(160, fontSize + 4); $("fontVal").textContent = fontSize; send("font", fontSize); };
+$("fontDown").onclick = () => { fontSize = Math.max(20, fontSize - 4); $("fontVal").textContent = fontSize; send("font", fontSize); };
+
+$("tGuide").onclick = () => { guide = !guide; $("tGuide").classList.toggle("on", guide); send("guide", guide); };
+$("tFlipH").onclick = () => { flipH = !flipH; $("tFlipH").classList.toggle("on", flipH); send("flipH", flipH); };
+$("tFlipV").onclick = () => { flipV = !flipV; $("tFlipV").classList.toggle("on", flipV); send("flipV", flipV); };
+
+const seek = $("seek");
+seek.addEventListener("input", () => { seeking = true; const v = seek.value / 1000; $("pct").textContent = Math.round(v * 100) + "%"; send("seek", v); });
+seek.addEventListener("change", () => { seeking = false; });
+
+$("load").onclick = () => { sendScript($("script").value); flash($("load"), "보냄!"); };
+$("clear").onclick = () => { $("script").value = ""; $("filename").textContent = ""; sendScript(""); };
+
+// 파일 업로드 → 텍스트로 읽어 대본칸 채우고 바로 프롬프터에 전송
+$("file").addEventListener("change", (e) => {
+  const f = e.target.files && e.target.files[0];
+  if (!f) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    let text = String(reader.result || "");
+    // 자막 파일(.srt/.vtt)이면 타임코드·번호를 걸러 대사만 남긴다
+    if (/\.(srt|vtt)$/i.test(f.name)) text = stripSubtitles(text);
+    $("script").value = text;
+    $("filename").textContent = "✓ " + f.name;
+    sendScript(text);          // 불러오면 곧바로 프롬프터에 표시
+  };
+  reader.onerror = () => { $("filename").textContent = "파일을 읽지 못했습니다"; };
+  reader.readAsText(f, "utf-8");
+  e.target.value = "";          // 같은 파일 다시 선택 가능하도록 초기화
+});
+
+function stripSubtitles(raw) {
+  return raw
+    .replace(/^WEBVTT.*$/im, "")
+    .split(/\r?\n/)
+    .filter(line => {
+      const t = line.trim();
+      if (!t) return false;                       // 빈 줄 제거
+      if (/^\d+$/.test(t)) return false;           // 자막 번호 제거
+      if (/-->/.test(t)) return false;             // 타임코드 제거
+      return true;
+    })
+    .join("\n");
+}
+
+function flash(btn, msg) {
+  const old = btn.textContent; btn.textContent = msg;
+  setTimeout(() => { btn.textContent = old; }, 900);
+}
+
+connect();
+</script>
+</body>
+</html>

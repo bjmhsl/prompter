@@ -1,0 +1,17 @@
+{
+  "name": "prompter",
+  "version": "1.0.0",
+  "description": "로컬 네트워크 WebSocket 기반 프롬프터 + 리모콘",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "qrcode": "^1.5.4",
+    "ws": "^8.18.0"
+  }
+}

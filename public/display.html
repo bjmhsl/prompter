@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>프롬프터</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #000; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", sans-serif;
+    color: #fff;
+  }
+  #stage {
+    position: absolute; inset: 0; overflow: hidden;
+    touch-action: none; user-select: none; -webkit-user-select: none; cursor: grab;
+  }
+  #stage:active { cursor: grabbing; }
+  /* 좌우/상하 반전(텔레프롬프터 유리용) */
+  #stage.flip-h #scroller { transform: scaleX(-1); transform-origin: center; }
+  #stage.flip-v #scroller { transform: scaleY(-1); transform-origin: center; }
+  #stage.flip-h.flip-v #scroller { transform: scale(-1, -1); }
+
+  #scroller {
+    will-change: transform;
+    padding: 0 7vw;
+  }
+  #content {
+    white-space: pre-wrap;
+    word-break: break-word;
+    line-height: 1.45;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+  }
+  /* 위·아래 여백: 첫 줄이 가운데에서 시작하고 마지막 줄도 끝까지 올라오도록 */
+  #scroller { padding-top: 50vh; padding-bottom: 60vh; }
+
+  /* 읽기 기준선 */
+  #guide {
+    position: absolute; left: 0; right: 0; top: 42%;
+    border-top: 2px solid rgba(245,166,35,0.55);
+    pointer-events: none; display: none;
+  }
+  #stage.guide #guide { display: block; }
+  #guide::before, #guide::after {
+    content: ""; position: absolute; top: -7px;
+    border-top: 8px solid transparent; border-bottom: 8px solid transparent;
+  }
+  #guide::before { left: 0; border-left: 12px solid #f5a623; }
+  #guide::after { right: 0; border-right: 12px solid #f5a623; }
+
+  /* 양옆 그라데이션으로 가독성 */
+  #vignette { position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(to bottom, rgba(0,0,0,.55), transparent 18%, transparent 82%, rgba(0,0,0,.55)); }
+
+  /* 화면에서 직접 위/아래 조정하는 버튼 */
+  #nudgers { position: absolute; right: 16px; bottom: 20px; display: flex; flex-direction: column; gap: 12px; z-index: 6; }
+  #nudgers button {
+    width: 64px; height: 64px; border-radius: 50%; border: 1px solid rgba(255,255,255,.18);
+    background: rgba(25,25,25,.5); color: #fff; font-size: 26px; line-height: 1;
+    display: flex; align-items: center; justify-content: center; opacity: .55; transition: opacity .25s;
+  }
+  #nudgers button:active { opacity: 1; background: rgba(245,166,35,.85); color: #0b0d10; }
+  #stage.playing #nudgers { opacity: .35; }
+
+  #hint {
+    position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+    background: rgba(20,20,20,.85); color: #bbb; font-size: 13px;
+    padding: 8px 14px; border-radius: 999px; z-index: 5; transition: opacity .4s;
+  }
+  #dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:#e0533d; margin-right:6px; vertical-align:middle;}
+  #dot.on { background:#34c759; }
+  #empty {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    text-align: center; color: #888; font-size: 18px; padding: 0 24px; line-height: 1.6;
+  }
+</style>
+</head>
+<body>
+  <div id="stage">
+    <div id="scroller"><div id="content"></div></div>
+    <div id="guide"></div>
+    <div id="vignette"></div>
+    <div id="nudgers">
+      <button id="nUp" aria-label="위로">▲</button>
+      <button id="nDown" aria-label="아래로">▼</button>
+    </div>
+  </div>
+  <div id="empty">리모콘에서 대본을 입력하고<br/>▶︎ 를 누르면 여기에 흐릅니다.</div>
+  <div id="hint"><span id="dot"></span><span id="hinttext">리모콘 연결 대기 중…</span></div>
+
+<script>
+const stage = document.getElementById("stage");
+const scroller = document.getElementById("scroller");
+const content = document.getElementById("content");
+const empty = document.getElementById("empty");
+const hint = document.getElementById("hint");
+const hintText = document.getElementById("hinttext");
+const dot = document.getElementById("dot");
+
+const state = {
+  text: "",
+  fontSize: 56,   // px
+  speed: 90,      // px/sec
+  playing: false,
+  pos: 0,         // 현재 스크롤 오프셋(px)
+  flipH: false,
+  flipV: false,
+  guide: true,
+};
+
+function maxPos() {
+  return Math.max(0, scroller.scrollHeight - window.innerHeight);
+}
+function applyVisual() {
+  content.style.fontSize = state.fontSize + "px";
+  stage.classList.toggle("flip-h", state.flipH);
+  stage.classList.toggle("flip-v", state.flipV);
+  stage.classList.toggle("guide", state.guide);
+  empty.style.display = state.text.trim() ? "none" : "flex";
+}
+function render() {
+  scroller.style.transform = "translateY(" + (-state.pos) + "px)";
+}
+
+// ── 애니메이션 루프 ───────────────────────────────
+let last = 0;
+function frame(t) {
+  if (!last) last = t;
+  const dt = (t - last) / 1000;
+  last = t;
+  if (state.playing) {
+    state.pos += state.speed * dt;
+    const mp = maxPos();
+    if (state.pos >= mp) { state.pos = mp; setPlaying(false); sendStatus(); }
+    render();
+  }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+// ── WebSocket ────────────────────────────────────
+let ws, reconnectTimer, statusTimer;
+function connect() {
+  ws = new WebSocket((location.protocol === "https:" ? "wss://" : "ws://") + location.host);
+  ws.onopen = () => {
+    ws.send(JSON.stringify({ type: "hello", role: "display" }));
+    setConn(true);
+    sendStatus();
+  };
+  ws.onclose = () => { setConn(false); clearTimeout(reconnectTimer); reconnectTimer = setTimeout(connect, 1200); };
+  ws.onerror = () => ws.close();
+  ws.onmessage = (e) => {
+    let msg; try { msg = JSON.parse(e.data); } catch { return; }
+    if (msg.type === "script") { setText(msg.text); }
+    else if (msg.type === "control") { handleControl(msg); }
+    else if (msg.type === "sync-request") { sendStatus(); }
+  };
+}
+function setConn(ok) {
+  dot.classList.toggle("on", ok);
+  hintText.textContent = ok ? "리모콘 연결됨" : "서버 연결 끊김 — 재연결 중…";
+  hint.style.opacity = "1";
+  clearTimeout(hint._t);
+  if (ok) hint._t = setTimeout(() => { hint.style.opacity = "0"; }, 2500);
+}
+function sendStatus() {
+  if (!ws || ws.readyState !== 1) return;
+  ws.send(JSON.stringify({
+    type: "status",
+    playing: state.playing,
+    speed: state.speed,
+    fontSize: state.fontSize,
+    progress: maxPos() ? state.pos / maxPos() : 0,
+    hasText: !!state.text.trim(),
+    flipH: state.flipH, flipV: state.flipV, guide: state.guide,
+  }));
+}
+// 상태를 주기적으로 보고(진행바 동기화)
+statusTimer = setInterval(() => { if (state.playing) sendStatus(); }, 250);
+
+function setText(t) {
+  state.text = t || "";
+  content.textContent = state.text;
+  state.pos = 0; state.playing = false;
+  applyVisual(); render(); sendStatus();
+}
+
+function handleControl(m) {
+  switch (m.action) {
+    case "play":   setPlaying(true); break;
+    case "pause":  setPlaying(false); break;
+    case "toggle": setPlaying(!state.playing); break;
+    case "restart": state.pos = 0; break;
+    case "end": state.pos = maxPos(); setPlaying(false); break;
+    case "speed": state.speed = clamp(m.value, 10, 600); break;
+    case "speedBy": state.speed = clamp(state.speed + m.value, 10, 600); break;
+    case "font": state.fontSize = clamp(m.value, 20, 160); applyVisual(); break;
+    case "fontBy": state.fontSize = clamp(state.fontSize + m.value, 20, 160); applyVisual(); break;
+    case "nudge": state.pos = clamp(state.pos + m.value, 0, maxPos()); break;
+    case "seek":  state.pos = clamp(m.value * maxPos(), 0, maxPos()); break;
+    case "flipH": state.flipH = !!m.value; applyVisual(); break;
+    case "flipV": state.flipV = !!m.value; applyVisual(); break;
+    case "guide": state.guide = !!m.value; applyVisual(); break;
+  }
+  render(); sendStatus();
+}
+function clamp(v, a, b) { return Math.min(b, Math.max(a, v)); }
+
+function setPlaying(v) { state.playing = v; stage.classList.toggle("playing", v); }
+
+// ── 화면에서 직접 위/아래 조정 ──────────────────
+// 위아래로 쓸기(스와이프/드래그) — 짧게 탭하면 재생/정지
+let drag = null;
+stage.addEventListener("pointerdown", (e) => {
+  if (e.target.closest("#nudgers")) return; // 버튼은 따로 처리
+  drag = { y: e.clientY, startPos: state.pos, moved: false };
+  try { stage.setPointerCapture(e.pointerId); } catch {}
+});
+stage.addEventListener("pointermove", (e) => {
+  if (!drag) return;
+  const dy = e.clientY - drag.y;
+  if (!drag.moved && Math.abs(dy) > 6) { drag.moved = true; setPlaying(false); }
+  if (drag.moved) {
+    const dir = state.flipV ? -1 : 1;           // 상하반전 시 방향 보정
+    // 위로 쓸면(dy<0) 텍스트가 전진(pos 증가)
+    state.pos = clamp(drag.startPos - dir * dy, 0, maxPos());
+    render();
+  }
+});
+function endDrag() {
+  if (!drag) return;
+  if (!drag.moved) setPlaying(!state.playing);  // 탭 = 재생/정지
+  drag = null; sendStatus();
+}
+stage.addEventListener("pointerup", endDrag);
+stage.addEventListener("pointercancel", () => { drag = null; });
+
+// 데스크톱: 마우스 휠로 위/아래
+stage.addEventListener("wheel", (e) => {
+  e.preventDefault();
+  setPlaying(false);
+  state.pos = clamp(state.pos + e.deltaY, 0, maxPos());
+  render(); sendStatus();
+}, { passive: false });
+
+// 키보드: 스페이스=재생/정지, 방향키=이동
+window.addEventListener("keydown", (e) => {
+  if (e.key === " " || e.code === "Space") { e.preventDefault(); setPlaying(!state.playing); sendStatus(); }
+  else if (e.key === "ArrowDown") { e.preventDefault(); setPlaying(false); state.pos = clamp(state.pos + 60, 0, maxPos()); render(); sendStatus(); }
+  else if (e.key === "ArrowUp") { e.preventDefault(); setPlaying(false); state.pos = clamp(state.pos - 60, 0, maxPos()); render(); sendStatus(); }
+});
+
+// 화면의 ▲▼ 버튼: 누르고 있으면 계속 이동
+function holdNudge(btn, delta) {
+  let iv = null;
+  const step = () => { state.pos = clamp(state.pos + delta, 0, maxPos()); render(); sendStatus(); };
+  const start = (e) => { e.preventDefault(); e.stopPropagation(); setPlaying(false); step(); clearInterval(iv); iv = setInterval(step, 55); };
+  const stop = () => { clearInterval(iv); iv = null; };
+  btn.addEventListener("pointerdown", start);
+  btn.addEventListener("pointerup", stop);
+  btn.addEventListener("pointerleave", stop);
+  btn.addEventListener("pointercancel", stop);
+}
+holdNudge(document.getElementById("nUp"), -40);
+holdNudge(document.getElementById("nDown"), 40);
+
+window.addEventListener("resize", () => { state.pos = Math.min(state.pos, maxPos()); render(); sendStatus(); });
+
+applyVisual(); render(); connect();
+</script>
+</body>
+</html>

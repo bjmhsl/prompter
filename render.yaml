@@ -1,0 +1,13 @@
+# Render Blueprint — 이 저장소를 그대로 무료 웹서비스로 배포한다.
+# render.com → New → Blueprint → 이 깃 저장소 선택하면 자동 인식됨.
+services:
+  - type: web
+    name: prompter
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "20"

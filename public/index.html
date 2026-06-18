@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>프롬프터 · 시작</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh;
+    font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", sans-serif;
+    background: #0b0d10; color: #e8eaed;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 32px 20px 60px;
+  }
+  h1 { font-size: 22px; margin: 8px 0 4px; }
+  .sub { color: #9aa0a6; font-size: 14px; margin-bottom: 28px; text-align: center; }
+  .cards { display: flex; gap: 18px; flex-wrap: wrap; justify-content: center; width: 100%; max-width: 760px; }
+  .card {
+    background: #15181c; border: 1px solid #23272e; border-radius: 18px;
+    padding: 22px; flex: 1 1 320px; text-align: center;
+  }
+  .card h2 { font-size: 17px; margin: 0 0 4px; }
+  .card p { color: #9aa0a6; font-size: 13px; margin: 0 0 16px; }
+  .qr { width: 200px; height: 200px; background: #fff; border-radius: 12px; margin: 0 auto 14px; display: flex; align-items: center; justify-content: center; }
+  .qr img { width: 100%; height: 100%; border-radius: 12px; }
+  .url { font-size: 13px; color: #8ab4f8; word-break: break-all; margin-bottom: 14px; }
+  a.btn {
+    display: inline-block; text-decoration: none; color: #0b0d10; font-weight: 700;
+    background: #f5a623; padding: 12px 22px; border-radius: 999px; font-size: 15px;
+  }
+  a.btn.alt { background: #8ab4f8; }
+  .tip { margin-top: 30px; max-width: 620px; color: #9aa0a6; font-size: 13px; line-height: 1.6; text-align: center; }
+  .badge { display:inline-block; background:#23272e; color:#cfd3d8; border-radius:999px; padding:3px 10px; font-size:12px; margin-bottom:18px;}
+</style>
+</head>
+<body>
+  <div class="badge" id="net">네트워크 확인 중…</div>
+  <h1>📱 프롬프터</h1>
+  <div class="sub">두 기기를 <b>같은 와이파이</b>에 두고, 아래 주소를 각 기기에서 여세요.</div>
+  <div class="cards">
+    <div class="card">
+      <h2>프롬프터 화면</h2>
+      <p>대본을 보여줄 기기(폰)에서 열기</p>
+      <div class="qr" id="qrDisplay"></div>
+      <div class="url" id="urlDisplay">…</div>
+      <a class="btn" href="/display">이 기기에서 열기</a>
+    </div>
+    <div class="card">
+      <h2>리모콘</h2>
+      <p>조작할 기기에서 열기</p>
+      <div class="qr" id="qrRemote"></div>
+      <div class="url" id="urlRemote">…</div>
+      <a class="btn alt" href="/remote">이 기기에서 열기</a>
+    </div>
+  </div>
+  <div class="tip">
+    QR이 안 보이면 다른 기기의 브라우저 주소창에 위 주소를 직접 입력하세요.<br/>
+    와이파이가 없으면 폰 핫스팟을 켜고 노트북을 거기에 연결해도 됩니다.
+  </div>
+<script>
+fetch("/api/info").then(r => r.json()).then(info => {
+  document.getElementById("net").textContent = "서버 주소  " + (info.base || info.ip);
+  document.getElementById("urlDisplay").textContent = info.display;
+  document.getElementById("urlRemote").textContent = info.remote;
+  if (info.displayQR) document.getElementById("qrDisplay").innerHTML = '<img src="'+info.displayQR+'" alt="display QR"/>';
+  else document.getElementById("qrDisplay").textContent = "QR 없음";
+  if (info.remoteQR) document.getElementById("qrRemote").innerHTML = '<img src="'+info.remoteQR+'" alt="remote QR"/>';
+  else document.getElementById("qrRemote").textContent = "QR 없음";
+}).catch(() => {
+  document.getElementById("net").textContent = "서버 정보를 불러오지 못했습니다";
+});
+</script>
+</body>
+</html>
