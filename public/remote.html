@@ -78,6 +78,16 @@
   #load { background: #8ab4f8; color: #0b0d10; }
   #clear { background: #15181c; border: 1px solid #23272e; }
   .hintbar { font-size: 12px; color: #6b7178; text-align: center; }
+
+  /* 파일을 드래그해 올 때 화면 전체 오버레이 */
+  body.dropping::after {
+    content: "📄 여기에 파일을 놓으세요";
+    position: fixed; inset: 12px; z-index: 50;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; font-weight: 700; color: #8ab4f8;
+    background: rgba(11,13,16,.92); border: 3px dashed #8ab4f8; border-radius: 20px;
+    pointer-events: none;
+  }
 </style>
 </head>
 <body>
@@ -128,7 +138,7 @@
       <div class="editbody">
         <div class="filerow">
           <label class="filebtn">
-            📄 파일 불러오기 (.txt 등)
+            📄 파일 불러오기 · 끌어다 놓기 (.txt 등)
             <input id="file" type="file" accept=".txt,.md,.markdown,.srt,.vtt,.text,text/plain" />
           </label>
           <span class="filename" id="filename"></span>
@@ -214,9 +224,8 @@ seek.addEventListener("change", () => { seeking = false; });
 $("load").onclick = () => { sendScript($("script").value); flash($("load"), "보냄!"); };
 $("clear").onclick = () => { $("script").value = ""; $("filename").textContent = ""; sendScript(""); };
 
-// 파일 업로드 → 텍스트로 읽어 대본칸 채우고 바로 프롬프터에 전송
-$("file").addEventListener("change", (e) => {
-  const f = e.target.files && e.target.files[0];
+// 파일을 텍스트로 읽어 대본칸 채우고 바로 프롬프터에 전송 (버튼·드래그 공용)
+function loadFile(f) {
   if (!f) return;
   const reader = new FileReader();
   reader.onload = () => {
@@ -229,7 +238,34 @@ $("file").addEventListener("change", (e) => {
   };
   reader.onerror = () => { $("filename").textContent = "파일을 읽지 못했습니다"; };
   reader.readAsText(f, "utf-8");
+}
+
+// 파일 선택 버튼
+$("file").addEventListener("change", (e) => {
+  loadFile(e.target.files && e.target.files[0]);
   e.target.value = "";          // 같은 파일 다시 선택 가능하도록 초기화
+});
+
+// 드래그앤드롭 — 화면 어디에 떨궈도 됨
+let dragDepth = 0;             // 자식 요소 위를 지날 때 깜빡임 방지용 카운터
+function showDrop(on) { document.body.classList.toggle("dropping", on); }
+["dragenter", "dragover"].forEach(ev =>
+  window.addEventListener(ev, (e) => {
+    if (!e.dataTransfer || ![...e.dataTransfer.types].includes("Files")) return;
+    e.preventDefault();
+    if (ev === "dragenter") dragDepth++;
+    showDrop(true);
+  })
+);
+window.addEventListener("dragleave", (e) => {
+  e.preventDefault();
+  if (--dragDepth <= 0) { dragDepth = 0; showDrop(false); }
+});
+window.addEventListener("drop", (e) => {
+  e.preventDefault();
+  dragDepth = 0; showDrop(false);
+  const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+  if (f) { document.querySelector("details").open = true; loadFile(f); }
 });
 
 function stripSubtitles(raw) {
