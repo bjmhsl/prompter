@@ -17,10 +17,12 @@
     touch-action: none; user-select: none; -webkit-user-select: none; cursor: grab;
   }
   #stage:active { cursor: grabbing; }
-  /* 좌우/상하 반전(텔레프롬프터 유리용) */
-  #stage.flip-h #scroller { transform: scaleX(-1); transform-origin: center; }
-  #stage.flip-v #scroller { transform: scaleY(-1); transform-origin: center; }
-  #stage.flip-h.flip-v #scroller { transform: scale(-1, -1); }
+  /* 좌우/상하 반전(텔레프롬프터 유리용)
+     주의: #scroller에는 render()가 translateY를 인라인으로 넣으므로 여기서 transform을 주면 덮어써진다.
+     반전은 자식 #content에 적용해 충돌을 피한다. */
+  #stage.flip-h #content { transform: scaleX(-1); transform-origin: center; }
+  #stage.flip-v #content { transform: scaleY(-1); transform-origin: center; }
+  #stage.flip-h.flip-v #content { transform: scale(-1, -1); transform-origin: center; }
 
   #scroller {
     will-change: transform;
