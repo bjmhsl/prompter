@@ -39,6 +39,31 @@ npm start
 - 대본 편집/전송, **파일 업로드(.txt/.md/.srt/.vtt)** — 자막 파일은 타임코드·번호 자동 제거
 - 연결 상태 표시(끊기면 자동 재연결)
 
+## 클라우드 배포 (컴퓨터 없이 폰 두 대로)
+
+컴퓨터가 꺼져 있어도 두 폰이 **공개 주소**만 열면 되도록 서버를 클라우드에 올린다.
+Render 무료 등급은 WebSocket을 지원한다.
+
+1. **GitHub에 빈 저장소**를 하나 만든다 (예: `prompter`).
+2. 이 폴더에서 push (이미 git 커밋돼 있음):
+   ```bash
+   git remote add origin https://github.com/<내계정>/prompter.git
+   git branch -M main
+   git push -u origin main
+   ```
+3. [render.com](https://render.com) 가입 → **New → Blueprint** → 위 저장소 선택.
+   `render.yaml`을 자동 인식한다 → **Apply**.
+4. 1~2분 뒤 `https://prompter-xxxx.onrender.com` 주소가 생긴다.
+5. **두 안드로이드 폰**에서 그 주소를 연다:
+   - 시작 페이지 `https://…onrender.com/` → 프롬프터/리모콘 QR
+   - 프롬프터: `…/display`, 리모콘: `…/remote`
+   - 같은 와이파이일 필요 없음. 셀룰러로도 됨.
+
+> ⚠️ **무료 등급 주의**: 15분 미사용 시 서버가 잠들어 첫 접속이 30~50초 걸린다.
+> 발표 직전에 주소를 한 번 미리 열어 깨워두면 된다. (유료 등급은 안 잠듦)
+
+대안: `Dockerfile`이 있어 **Fly.io / Railway** 등 컨테이너 호스트에도 그대로 올릴 수 있다.
+
 ## 구조
 
 - `server.js` — 정적 서빙 + WebSocket 릴레이(상태 캐시 → 늦게 접속한 기기도 자동 동기화)
