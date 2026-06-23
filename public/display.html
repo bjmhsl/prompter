@@ -25,11 +25,13 @@
   }
   #stage:active { cursor: grabbing; }
   /* 좌우/상하 반전(텔레프롬프터 유리용)
-     주의: #scroller에는 render()가 translateY를 인라인으로 넣으므로 여기서 transform을 주면 덮어써진다.
-     반전은 자식 #content에 적용해 충돌을 피한다. */
-  #stage.flip-h #content { transform: scaleX(-1); transform-origin: center; }
-  #stage.flip-v #content { transform: scaleY(-1); transform-origin: center; }
-  #stage.flip-h.flip-v #content { transform: scale(-1, -1); transform-origin: center; }
+     반전은 화면 크기의 #flipper 레이어에 건다. 글자 덩어리(#content)에 직접 걸면
+     세로 반전 시 덩어리가 자기 중심으로 뒤집혀 줄 순서가 거꾸로(맨 밑부터) 된다.
+     창 전체를 뒤집으면 줄 순서(1→2→3)는 그대로 유지된다. */
+  #flipper { position: absolute; inset: 0; transform-origin: center; }
+  #stage.flip-h #flipper { transform: scaleX(-1); }
+  #stage.flip-v #flipper { transform: scaleY(-1); }
+  #stage.flip-h.flip-v #flipper { transform: scale(-1, -1); }
 
   #scroller {
     will-change: transform;
@@ -97,7 +99,7 @@
 </head>
 <body>
   <div id="stage">
-    <div id="scroller"><div id="content"></div></div>
+    <div id="flipper"><div id="scroller"><div id="content"></div></div></div>
     <div id="guide"></div>
     <div id="vignette"></div>
     <div id="nudgers">
