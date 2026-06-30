@@ -177,6 +177,8 @@ function connect() {
     if (msg.type === "script") { setText(msg.text); }
     else if (msg.type === "control") { handleControl(msg); }
     else if (msg.type === "sync-request") { sendStatus(); }
+    // 리모콘에서 뭔가 올 때마다 화면 꺼짐 방지를 다시 확보(혹시 풀렸으면 재획득)
+    keepAwake();
   };
 }
 function setConn(ok) {
@@ -314,6 +316,7 @@ window.addEventListener("resize", () => { state.pos = Math.min(state.pos, maxPos
 let wakeLock = null;
 let wakeShown = false;
 async function keepAwake() {
+  if (wakeLock) return;  // 이미 잡혀 있으면 중복 요청 안 함
   if (!("wakeLock" in navigator) || document.visibilityState !== "visible") return;
   try {
     wakeLock = await navigator.wakeLock.request("screen");
@@ -331,6 +334,8 @@ async function keepAwake() {
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") keepAwake(); });
 // 일부 브라우저는 사용자 제스처가 있어야 허용 → 첫 탭에서도 시도
 window.addEventListener("pointerdown", keepAwake, { once: false });
+// 안전망: 주기적으로 점검해 풀려 있으면 다시 확보
+setInterval(keepAwake, 15000);
 
 applyVisual(); render(); connect(); keepAwake();
 </script>
