@@ -24,7 +24,7 @@ const MIME = {
 };
 
 // 배포된 버전 확인용. 코드 바꿀 때마다 올린다.
-const BUILD = "2026-06-18-vflip-order";
+const BUILD = "2026-06-18-wakelock";
 
 function lanIP() {
   const ifaces = os.networkInterfaces();

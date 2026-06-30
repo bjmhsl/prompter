@@ -309,7 +309,30 @@ document.addEventListener("webkitfullscreenchange", syncFsIcon);
 
 window.addEventListener("resize", () => { state.pos = Math.min(state.pos, maxPos()); render(); sendStatus(); });
 
-applyVisual(); render(); connect();
+// ── 화면 꺼짐 방지 (Wake Lock) ──────────────────
+// 안드로이드 크롬 등 지원. 탭이 가려지면 자동 해제되므로 돌아올 때 다시 건다.
+let wakeLock = null;
+let wakeShown = false;
+async function keepAwake() {
+  if (!("wakeLock" in navigator) || document.visibilityState !== "visible") return;
+  try {
+    wakeLock = await navigator.wakeLock.request("screen");
+    wakeLock.addEventListener("release", () => { wakeLock = null; });
+    if (!wakeShown) {  // 처음 켜질 때 한 번만 알려줌
+      wakeShown = true;
+      hintText.textContent = "🔆 화면 꺼짐 방지 켜짐";
+      hint.style.opacity = "1";
+      clearTimeout(hint._t);
+      hint._t = setTimeout(() => { hint.style.opacity = "0"; }, 2500);
+    }
+  } catch (e) { /* 사용자 제스처가 필요한 브라우저는 첫 탭 때 다시 시도됨 */ }
+}
+// 가려졌다 돌아오면 다시 확보
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") keepAwake(); });
+// 일부 브라우저는 사용자 제스처가 있어야 허용 → 첫 탭에서도 시도
+window.addEventListener("pointerdown", keepAwake, { once: false });
+
+applyVisual(); render(); connect(); keepAwake();
 </script>
 </body>
 </html>
